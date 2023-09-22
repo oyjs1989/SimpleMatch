@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>撮合系统首页</title>
+    <style>
+        .center {
+            margin: 0 auto;
+            width: 400px;
+        }
+
+        /* 标签样式 */
+        .tab {
+            display: none;
+        }
+
+        /* 标签标题样式 */
+        .tab-title {
+            cursor: pointer;
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+
+        /* 当前选中标签标题样式 */
+        .active-tab {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+        }
+
+        /* 表格样式 */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="tab-title" onclick="showTab('tab1')">创建订单</div>
+    <div class="tab-title" onclick="showTab('tab2')">订单记录</div>
+    <div class="tab-title" onclick="showTab('tab3')">当前挂单</div>
+
+
+    <div id="tab1" class="tab">
+        <h1>挂单</h1>
+        <form id="orderForm" method="POST" action="/orders">
+            名字:<input type="text" name="name" value="月饼"><br>
+            方向:
+            <select name="side">
+                <option value="buy">买入</option>
+                <option value="sell">卖出</option>
+            </select><br>
+            价格:<input type="number" name="price" step="0.01"><br>
+            数量:<input type="number" name="quantity" value="1"><br>
+            联系人:<input type="text" name="owner"><br>
+            <input type="submit" value="提交">
+        </form>
+    </div>
+
+    <div id="tab2" class="tab">
+        <h2>交易记录</h2>
+        <div id="table-container"></div>
+    </div>
+
+    <div id="tab3" class="tab">
+        <h2>当前挂单</h2>
+        <div id="order-book-table-container"></div>
+    </div>
+
+    <script>
+        // 获取tab和内容div
+        const orderForm = document.getElementById('orderForm');
+        orderForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(orderForm);
+            const jsonData = JSON.stringify(Object.fromEntries(formData));
+
+            // 使用Fetch API将数据提交到后端
+            fetch('/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: jsonData
+            })
+                .then(response => {
+                    console.log('数据提交成功', response);
+                })
+                .catch(error => {
+                    console.log('提交失败', error);
+                });
+
+        });
+
+        function showTab(tabId) {
+            // 隐藏所有标签
+            var tabs = document.getElementsByClassName("tab");
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].style.display = "none";
+            }
+
+            // 取消所有标签标题的活动状态
+            var tabTitles = document.getElementsByClassName("tab-title");
+            for (var i = 0; i < tabTitles.length; i++) {
+                tabTitles[i].classList.remove("active-tab");
+            }
+
+            // 显示选定的标签
+            document.getElementById(tabId).style.display = "block";
+
+            // 设置选定的标签标题为活动状态
+            document.querySelector('[onclick="showTab(\'' + tabId + '\')"]').classList.add("active-tab");
+
+            // 根据标签ID调用不同的数据加载函数
+            if (tabId === 'tab2') {
+                loadTradeData();
+            } else if (tabId === 'tab3') {
+                loadOrderBookData();
+            }
+        }
+
+        // 默认显示第一个标签
+        showTab("tab1");
+
+        // 渲染JSON数据为HTML表格
+        function renderTable(data, containerId) {
+            var tableContainer = document.getElementById(containerId);
+            var table = document.createElement('table');
+            var thead = document.createElement('thead');
+            var tbody = document.createElement('tbody');
+
+            // 创建表头
+            var headerRow = document.createElement('tr');
+            for (var key in data[0]) {
+                var th = document.createElement('th');
+                th.textContent = key;
+                headerRow.appendChild(th);
+            }
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // 创建表格数据
+            data.forEach(function (item) {
+                var row = document.createElement('tr');
+                for (var key in item) {
+                    var cell = document.createElement('td');
+                    cell.textContent = item[key];
+                    row.appendChild(cell);
+                }
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+
+            // 将表格添加到容器中
+            tableContainer.innerHTML = '';
+            tableContainer.appendChild(table);
+        }
+
+        // 加载交易数据
+        function loadTradeData() {
+            fetch('/trades')
+                .then(response => response.json())
+                .then(data => {
+                    var tradesData = document.getElementById('trades-data');
+                    tradesData.innerHTML = renderTable(data.trades, 'table-container');
+                })
+                .catch(error => {
+                    console.error('获取交易数据时发生错误:', error);
+                });
+        }
+
+        // 加载挂单数据
+        function loadOrderBookData() {
+            fetch('/order_book')
+                .then(response => response.json())
+                .then(data => {
+                    var tradesData = document.getElementById('orders-data', 'order-book-table-container');
+                    tradesData.innerHTML = renderTable(data.sells.concat(data.buys), 'order-book-table-container');
+                })
+                .catch(error => {
+                    console.error('获取交易数据时发生错误:', error);
+                });
+        }
+    </script>
+
+</body>
+
+</html>
